@@ -2,3 +2,4 @@ ansible
 lxml
 ncclient
 paramiko
+ansible-pylibssh
