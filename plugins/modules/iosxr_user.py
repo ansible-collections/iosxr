@@ -204,7 +204,6 @@ requirements:
 - ncclient >= 0.5.3 when using netconf
 - lxml >= 4.1.1 when using netconf
 - base64 when using I(public_key_contents) or I(public_key)
-- paramiko when using I(public_key_contents) or I(public_key)
 """
 
 EXAMPLES = """
@@ -287,7 +286,6 @@ from copy import deepcopy
 import collections
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.compat.paramiko import paramiko
 from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import (
     remove_default_spec,
 )
@@ -296,6 +294,8 @@ from ansible_collections.cisco.iosxr.plugins.module_utils.network.iosxr.iosxr im
     load_config,
     is_netconf,
     is_cliconf,
+    get_connection,
+    copy_file,
 )
 from ansible_collections.cisco.iosxr.plugins.module_utils.network.iosxr.iosxr import (
     iosxr_argument_spec,
@@ -341,17 +341,6 @@ class PublicKeyManager(object):
     def copy_key_to_node(self, base64keyfile):
         """ Copy key to IOS-XR node. We use SFTP because older IOS-XR versions don't handle SCP very well.
         """
-        provider = self._module.params.get("provider") or {}
-        node = provider.get("host")
-        if node is None:
-            return False
-
-        user = provider.get("username")
-        if user is None:
-            return False
-
-        password = provider.get("password")
-        ssh_keyfile = provider.get("ssh_keyfile")
 
         if self._module.params["aggregate"]:
             name = "aggregate"
@@ -361,122 +350,64 @@ class PublicKeyManager(object):
         src = base64keyfile
         dst = "/harddisk:/publickey_%s.b64" % (name)
 
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        if not ssh_keyfile:
-            ssh.connect(node, username=user, password=password)
-        else:
-            ssh.connect(node, username=user, allow_agent=True)
-        sftp = ssh.open_sftp()
-        sftp.put(src, dst)
-        sftp.close()
-        ssh.close()
+        copy_file(self._module, src, dst)
 
     def addremovekey(self, command):
         """ Add or remove key based on command
         """
-        provider = self._module.params.get("provider") or {}
-        node = provider.get("host")
-        if node is None:
-            return False
+        admin = self._module.params.get("admin")
 
-        user = provider.get("username")
-        if user is None:
-            return False
+        conn = get_connection(self._module)
+        if admin:
+            conn.send_command("admin")
+        out = conn.send_command(command, prompt="yes/no", answer="yes")
+        if admin:
+            conn.send_command("exit")
 
-        password = provider.get("password")
-        ssh_keyfile = provider.get("ssh_keyfile")
-
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        if not ssh_keyfile:
-            ssh.connect(node, username=user, password=password)
-        else:
-            ssh.connect(node, username=user, allow_agent=True)
-        ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(
-            "%s \r" % (command)
-        )
-        readmsg = ssh_stdout.read(
-            100
-        )  # We need to read a bit to actually apply for some reason
-        if (
-            ("already" in readmsg)
-            or ("removed" in readmsg)
-            or ("really" in readmsg)
-        ):
-            ssh_stdin.write("yes\r")
-        ssh_stdout.read(
-            1
-        )  # We need to read a bit to actually apply for some reason
-        ssh.close()
-
-        return readmsg
+        return out
 
     def run(self):
+
         if self._module.params["state"] == "present":
             if not self._module.check_mode:
                 key = self.convert_key_to_base64()
-                copykeys = self.copy_key_to_node(key)
-                if copykeys is False:
-                    self._result["warnings"].append(
-                        "Please set up your provider before running this playbook"
-                    )
+                self.copy_key_to_node(key)
 
                 if self._module.params["aggregate"]:
                     for user in self._module.params["aggregate"]:
                         cmdtodo = (
-                            "admin crypto key import authentication rsa username %s harddisk:/publickey_aggregate.b64"
+                            "crypto key import authentication rsa username %s harddisk:/publickey_aggregate.b64"
                             % (user)
                         )
-                        addremove = self.addremovekey(cmdtodo)
-                        if addremove is False:
-                            self._result["warnings"].append(
-                                "Please set up your provider before running this playbook"
-                            )
+                        self.addremovekey(cmdtodo)
                 else:
                     cmdtodo = (
-                        "admin crypto key import authentication rsa username %s harddisk:/publickey_%s.b64"
+                        "crypto key import authentication rsa username %s harddisk:/publickey_%s.b64"
                         % (
                             self._module.params["name"],
                             self._module.params["name"],
                         )
                     )
-                    addremove = self.addremovekey(cmdtodo)
-                    if addremove is False:
-                        self._result["warnings"].append(
-                            "Please set up your provider before running this playbook"
-                        )
+                    self.addremovekey(cmdtodo)
         elif self._module.params["state"] == "absent":
             if not self._module.check_mode:
                 if self._module.params["aggregate"]:
                     for user in self._module.params["aggregate"]:
                         cmdtodo = (
-                            "admin crypto key zeroize authentication rsa username %s"
+                            "crypto key zeroize authentication rsa username %s"
                             % (user)
                         )
-                        addremove = self.addremovekey(cmdtodo)
-                        if addremove is False:
-                            self._result["warnings"].append(
-                                "Please set up your provider before running this playbook"
-                            )
+                        self.addremovekey(cmdtodo)
                 else:
                     cmdtodo = (
-                        "admin crypto key zeroize authentication rsa username %s"
+                        "crypto key zeroize authentication rsa username %s"
                         % (self._module.params["name"])
                     )
-                    addremove = self.addremovekey(cmdtodo)
-                    if addremove is False:
-                        self._result["warnings"].append(
-                            "Please set up your provider before running this playbook"
-                        )
+                    self.addremovekey(cmdtodo)
         elif self._module.params["purge"] is True:
             if not self._module.check_mode:
-                cmdtodo = "admin crypto key zeroize authentication rsa all"
-                addremove = self.addremovekey(cmdtodo)
-                if addremove is False:
-                    self._result["warnings"].append(
-                        "Please set up your provider before running this playbook"
-                    )
+                cmdtodo = "crypto key zeroize authentication rsa all"
+                self.addremovekey(cmdtodo)
 
         return self._result
 
@@ -555,6 +486,10 @@ class CliConfiguration(ConfigBase):
 
     def map_config_to_obj(self):
         data = get_config(self._module, config_filter="username")
+
+        if "No such configuration item" in data:
+            return
+
         users = data.strip().rstrip("!").split("!")
 
         for user in users:
@@ -941,11 +876,6 @@ def main():
             module.fail_json(
                 msg="library base64 is required but does not appear to be "
                 "installed. It can be installed using `pip install base64`"
-            )
-        if paramiko is None:
-            module.fail_json(
-                msg="library paramiko is required but does not appear to be "
-                "installed. It can be installed using `pip install paramiko`"
             )
 
     result = {"changed": False, "warnings": []}
