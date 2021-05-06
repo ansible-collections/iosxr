@@ -107,6 +107,7 @@ options:
 """
 
 EXAMPLES = """
+# Test
 # Using merged
 
 # Before state:
