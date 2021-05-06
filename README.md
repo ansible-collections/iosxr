@@ -140,7 +140,7 @@ Please read and familiarize yourself with this document.
 
 ## Release notes
 
-Release notes are available [here](https://github.com/ansible-collections/cisco.iosxr/blob/main/changelogs/CHANGELOG.rst).
+Release notes are available [here](https://github.com/ansible-collections/cisco.iosxr/blob/main/CHANGELOG.rst).
 
 ## Roadmap
 
