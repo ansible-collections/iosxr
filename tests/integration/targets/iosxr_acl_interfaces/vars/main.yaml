@@ -1,7 +1,7 @@
 ---
 merged:
   before:
-    - name: MgmtEth0/0/CPU0/0
+    - name: MgmtEth0/RP0/CPU0/0
     - name: GigabitEthernet0/0/0/0
     - name: GigabitEthernet0/0/0/1
   commands:
@@ -17,7 +17,7 @@ merged:
     - ipv4 access-group acl_2 egress
     - ipv4 access-group acl_1 ingress
   after:
-    - name: MgmtEth0/0/CPU0/0
+    - name: MgmtEth0/RP0/CPU0/0
     - name: GigabitEthernet0/0/0/0
       access_groups:
         - acls:
@@ -39,7 +39,7 @@ merged:
               direction: out
           afi: ipv4
   update_before:
-    - name: MgmtEth0/0/CPU0/0
+    - name: MgmtEth0/RP0/CPU0/0
     - access_groups:
         - acls:
             - direction: in
@@ -61,7 +61,7 @@ merged:
           afi: ipv4
       name: GigabitEthernet0/0/0/1
   update_after:
-    - name: MgmtEth0/0/CPU0/0
+    - name: MgmtEth0/RP0/CPU0/0
     - access_groups:
         - acls:
             - direction: in
@@ -92,7 +92,7 @@ replaced:
     - no ipv6 access-group acl6_2 egress
     - ipv6 access-group acl6_3 ingress
   after:
-    - name: MgmtEth0/0/CPU0/0
+    - name: MgmtEth0/RP0/CPU0/0
     - name: GigabitEthernet0/0/0/0
       access_groups:
         - afi: ipv6
@@ -117,7 +117,7 @@ overridden:
     - ipv4 access-group acl_2 ingress
     - ipv6 access-group acl6_3 egress
   after:
-    - name: MgmtEth0/0/CPU0/0
+    - name: MgmtEth0/RP0/CPU0/0
     - name: GigabitEthernet0/0/0/0
       access_groups:
         - afi: ipv6
@@ -144,12 +144,12 @@ deleted:
     - interface GigabitEthernet0/0/0/1
     - no ipv4 access-group acl_1 egress
   after:
-    - name: MgmtEth0/0/CPU0/0
+    - name: MgmtEth0/RP0/CPU0/0
     - name: GigabitEthernet0/0/0/0
     - name: GigabitEthernet0/0/0/1
 round_trip:
   after:
-    - name: MgmtEth0/0/CPU0/0
+    - name: MgmtEth0/RP0/CPU0/0
     - access_groups:
         - acls:
             - direction: out

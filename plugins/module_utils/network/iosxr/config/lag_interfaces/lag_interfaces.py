@@ -16,6 +16,7 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 from copy import deepcopy
+from distutils.version import LooseVersion
 from ansible.module_utils.six import iteritems
 from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.cfg.base import (
     ConfigBase,
@@ -36,6 +37,9 @@ from ansible_collections.cisco.iosxr.plugins.module_utils.network.iosxr.utils.ut
     flatten_dict,
     dict_delete,
     normalize_interface,
+)
+from ansible_collections.cisco.iosxr.plugins.module_utils.network.iosxr.iosxr import (
+    get_os_version,
 )
 
 
@@ -76,7 +80,6 @@ class Lag_interfaces(ConfigBase):
         result = {"changed": False}
         warnings = list()
         commands = list()
-
         if self.state in self.ACTION_STATES:
             existing_lag_interfaces_facts = self.get_lag_interfaces_facts()
         else:
@@ -243,7 +246,6 @@ class Lag_interfaces(ConfigBase):
             pad_commands(commands, want["name"])
 
         commands.extend(self._render_interface_updates(want, have))
-
         return commands
 
     def _state_deleted(self, want, have):
@@ -425,7 +427,9 @@ class Lag_interfaces(ConfigBase):
             cmd = "lacp mode {0}".format(value)
 
         elif key == "load_balancing_hash":
-            cmd = "bundle load-balancing hash {0}".format(value)
+            os_version = get_os_version(self._module)
+            if os_version and LooseVersion(os_version) < LooseVersion("7.0.0"):
+                cmd = "bundle load-balancing hash {0}".format(value)
 
         elif key == "max_active":
             cmd = "bundle maximum-active links {0}".format(value)

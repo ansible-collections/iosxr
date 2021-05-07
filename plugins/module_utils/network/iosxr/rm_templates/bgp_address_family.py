@@ -65,7 +65,6 @@ def _tmpl_bgp_origin_as_validation(config_data):
 
 def _tmpl_bgp_dampening(config_data):
     dampening_conf = config_data.get("bgp", {}).get("dampening", {})
-    # import epdb;epdb.serve()
     if dampening_conf:
         command = "bgp dampening"
         if "value" in dampening_conf:
@@ -79,7 +78,6 @@ def _tmpl_bgp_dampening(config_data):
 def _tmpl_maximum_paths_ibgp(config_data):
 
     ibgp_conf = config_data.get("maximum_paths", {}).get("ibgp", {})
-    # import epdb;epdb.serve()
     if ibgp_conf:
         command = "maximum-paths ibgp"
         if "max_path_value" in ibgp_conf:
@@ -102,7 +100,6 @@ def _tmpl_maximum_paths_ibgp(config_data):
 def _tmpl_maximum_paths_ebgp(config_data):
 
     ebgp_conf = config_data.get("maximum_paths", {}).get("ebgp", {})
-    # import epdb;epdb.serve()
     if ebgp_conf:
         command = "maximum-paths ebgp"
         if "max_path_value" in ebgp_conf:
@@ -117,7 +114,6 @@ def _tmpl_maximum_paths_ebgp(config_data):
 def _tmpl_maximum_paths_eibgp(config_data):
 
     eibgp_conf = config_data.get("maximum_paths", {}).get("eibgp", {})
-    # import epdb;epdb.serve()
     if eibgp_conf:
         command = "maximum-paths ebgp"
         if "max_path_value" in eibgp_conf:
@@ -141,7 +137,6 @@ def _tmpl_network(config_data):
 def _tmpl_nexthop(config_data):
     nexthop_conf = config_data.get("nexthop", {})
     commands = []
-    # import epdb;epdb.serve()
     if nexthop_conf:
 
         if "resolution_prefix_length_minimum" in nexthop_conf:
@@ -167,7 +162,6 @@ def _tmpl_nexthop(config_data):
 
 def _tmpl_optimal_route(config_data):
     orr_conf = config_data.get("optimal_route_reflection", {})
-    # import epdb;epdb.serve()
     if orr_conf:
         command = "optimal-route-reflection"
         if "group_name" in orr_conf:
@@ -184,7 +178,6 @@ def _tmpl_update(config_data):
     update_wait = config_data.get("update", {}).get("wait_install")
     update_limit = config_data.get("update", {}).get("limit", {})
     commands = []
-    # import epdb;epdb.serve()
     if update_conf:
         if update_wait:
             command = "update wait-install"
@@ -232,7 +225,6 @@ def _tmplt_redistribute(redis):
 def _tmpl_vrf_all(config_data):
     conf = config_data.get("vrf_all", {})
     commands = []
-    # import epdb; epdb.serve()
     if conf:
         if "source_rt_import_policy" in conf:
             commands.append("vrf all source rt import-policy")

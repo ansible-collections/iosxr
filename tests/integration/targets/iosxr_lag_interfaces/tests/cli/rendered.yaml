@@ -17,7 +17,6 @@
         links:
           max_active: 5
           min_active: 2
-        load_balancing_hash: src-ip
 
       - name: Bundle-Ether12
         members:
@@ -25,7 +24,6 @@
             mode: passive
           - member: GigabitEthernet0/0/0/4
             mode: passive
-        load_balancing_hash: dst-ip
     state: rendered
 
 - name: Assert that correct set of commands were rendered

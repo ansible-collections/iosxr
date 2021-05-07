@@ -1,7 +1,7 @@
 ---
 - name: Remove Config
   vars:
-    lines: "interface GigabitEthernet 0/0/0/1\nno dot1q native vlan\nno l2transport\n\
+    lines: "interface GigabitEthernet 0/0/0/1\nno l2transport\n\
       no interface GigabitEthernet 0/0/0/2\nno interface GigabitEthernet 0/0/0/3\n\
       no interface GigabitEthernet 0/0/0/3.900\nno interface GigabitEthernet 0/0/0/4\n"
   ansible.netcommon.cli_config:

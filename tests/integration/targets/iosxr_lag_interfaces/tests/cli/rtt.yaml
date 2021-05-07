@@ -13,6 +13,7 @@
         config:
 
           - name: Bundle-Ether10
+            mode: active
             members:
 
               - member: GigabitEthernet0/0/0/1

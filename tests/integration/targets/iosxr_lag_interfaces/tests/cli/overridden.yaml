@@ -13,7 +13,6 @@
       register: result
       cisco.iosxr.iosxr_lag_interfaces: &id001
         config:
-
           - name: Bundle-Ether11
             mode: active
             members:
@@ -23,7 +22,6 @@
 
               - member: GigabitEthernet0/0/0/1
                 mode: active
-            load_balancing_hash: src-ip
             links:
               max_active: 10
               min_active: 5

@@ -285,6 +285,7 @@ import os
 from functools import partial
 from copy import deepcopy
 import collections
+from distutils.version import LooseVersion
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.compat.paramiko import paramiko
@@ -296,6 +297,7 @@ from ansible_collections.cisco.iosxr.plugins.module_utils.network.iosxr.iosxr im
     load_config,
     is_netconf,
     is_cliconf,
+    get_capabilities,
 )
 from ansible_collections.cisco.iosxr.plugins.module_utils.network.iosxr.iosxr import (
     iosxr_argument_spec,
@@ -663,72 +665,160 @@ class NCConfiguration(ConfigBase):
         cmd = "openssl passwd -salt `openssl rand -base64 3` -1 "
         return os.popen(cmd + arg).readlines()[0].strip()
 
-    def map_obj_to_xml_rpc(self):
-        self._locald_meta.update(
-            [
-                (
-                    "aaa_locald",
-                    {"xpath": "aaa/usernames", "tag": True, "ns": True},
-                ),
-                (
-                    "username",
-                    {
-                        "xpath": "aaa/usernames/username",
-                        "tag": True,
-                        "attrib": "operation",
-                    },
-                ),
-                ("a:name", {"xpath": "aaa/usernames/username/name"}),
-                (
-                    "a:configured_password",
-                    {
-                        "xpath": "aaa/usernames/username/secret",
-                        "operation": "edit",
-                    },
-                ),
-            ]
-        )
-
-        self._locald_group_meta.update(
-            [
-                (
-                    "aaa_locald",
-                    {"xpath": "aaa/usernames", "tag": True, "ns": True},
-                ),
-                (
-                    "username",
-                    {
-                        "xpath": "aaa/usernames/username",
-                        "tag": True,
-                        "attrib": "operation",
-                    },
-                ),
-                ("a:name", {"xpath": "aaa/usernames/username/name"}),
-                (
-                    "usergroups",
-                    {
-                        "xpath": "aaa/usernames/username/usergroup-under-usernames",
-                        "tag": True,
-                        "operation": "edit",
-                    },
-                ),
-                (
-                    "usergroup",
-                    {
-                        "xpath": "aaa/usernames/username/usergroup-under-usernames/usergroup-under-username",
-                        "tag": True,
-                        "operation": "edit",
-                    },
-                ),
-                (
-                    "a:group",
-                    {
-                        "xpath": "aaa/usernames/username/usergroup-under-usernames/usergroup-under-username/name",
-                        "operation": "edit",
-                    },
-                ),
-            ]
-        )
+    def map_obj_to_xml_rpc(self, os_version):
+        if os_version and LooseVersion(os_version) > LooseVersion("7.0"):
+            self._locald_meta.update(
+                [
+                    (
+                        "aaa_locald",
+                        {"xpath": "aaa/usernames", "tag": True, "ns": True},
+                    ),
+                    (
+                        "username",
+                        {
+                            "xpath": "aaa/usernames/username",
+                            "tag": True,
+                            "attrib": "operation",
+                        },
+                    ),
+                    ("a:name", {"xpath": "aaa/usernames/username/name"}),
+                    (
+                        "a:ordering_index",
+                        {"xpath": "aaa/usernames/username/ordering-index"},
+                    ),
+                    (
+                        "secret",
+                        {
+                            "xpath": "aaa/usernames/username/secret",
+                            "tag": True,
+                            "operation": "edit",
+                        },
+                    ),
+                    (
+                        "a:type",
+                        {
+                            "xpath": "aaa/usernames/username/secret/type",
+                            "value": "type5",
+                        },
+                    ),
+                    (
+                        "a:configured_password",
+                        {
+                            "xpath": "aaa/usernames/username/secret/secret5",
+                            "operation": "edit",
+                        },
+                    ),
+                ]
+            )
+            self._locald_group_meta.update(
+                [
+                    (
+                        "aaa_locald",
+                        {"xpath": "aaa/usernames", "tag": True, "ns": True},
+                    ),
+                    (
+                        "username",
+                        {
+                            "xpath": "aaa/usernames/username",
+                            "tag": True,
+                            "attrib": "operation",
+                        },
+                    ),
+                    ("a:name", {"xpath": "aaa/usernames/username/name"}),
+                    (
+                        "a:ordering_index",
+                        {"xpath": "aaa/usernames/username/ordering-index"},
+                    ),
+                    (
+                        "usergroups",
+                        {
+                            "xpath": "aaa/usernames/username/usergroup-under-usernames",
+                            "tag": True,
+                            "operation": "edit",
+                        },
+                    ),
+                    (
+                        "usergroup",
+                        {
+                            "xpath": "aaa/usernames/username/usergroup-under-usernames/usergroup-under-username",
+                            "tag": True,
+                            "operation": "edit",
+                        },
+                    ),
+                    (
+                        "a:group",
+                        {
+                            "xpath": "aaa/usernames/username/usergroup-under-usernames/usergroup-under-username/name",
+                            "operation": "edit",
+                        },
+                    ),
+                ]
+            )
+        else:
+            self._locald_meta.update(
+                [
+                    (
+                        "aaa_locald",
+                        {"xpath": "aaa/usernames", "tag": True, "ns": True},
+                    ),
+                    (
+                        "username",
+                        {
+                            "xpath": "aaa/usernames/username",
+                            "tag": True,
+                            "attrib": "operation",
+                        },
+                    ),
+                    ("a:name", {"xpath": "aaa/usernames/username/name"}),
+                    (
+                        "a:configured_password",
+                        {
+                            "xpath": "aaa/usernames/username/secret",
+                            "operation": "edit",
+                        },
+                    ),
+                ]
+            )
+            self._locald_group_meta.update(
+                [
+                    (
+                        "aaa_locald",
+                        {"xpath": "aaa/usernames", "tag": True, "ns": True},
+                    ),
+                    (
+                        "username",
+                        {
+                            "xpath": "aaa/usernames/username",
+                            "tag": True,
+                            "attrib": "operation",
+                        },
+                    ),
+                    ("a:name", {"xpath": "aaa/usernames/username/name"}),
+                    (
+                        "usergroups",
+                        {
+                            "xpath": "aaa/usernames/username/usergroup-under-usernames",
+                            "tag": True,
+                            "operation": "edit",
+                        },
+                    ),
+                    (
+                        "usergroup",
+                        {
+                            "xpath": "aaa/usernames/username/usergroup-under-usernames/usergroup-under-username",
+                            "tag": True,
+                            "operation": "edit",
+                        },
+                    ),
+                    (
+                        "a:group",
+                        {
+                            "xpath": "aaa/usernames/username/usergroup-under-usernames/usergroup-under-username/name",
+                            "operation": "edit",
+                        },
+                    ),
+                ]
+            )
 
         state = self._module.params["state"]
         _get_filter = build_xml("aaa", opcode="filter")
@@ -742,13 +832,20 @@ class NCConfiguration(ConfigBase):
             name_list = etree_findall(element, "name")
             users.append(name_list[0].text)
             list_size = len(name_list)
+            ordering_index = etree_findall(element, "ordering-index")
             if list_size == 1:
                 self._have.append(
-                    {"name": name_list[0].text, "group": None, "groups": None}
+                    {
+                        "name": name_list[0].text,
+                        "group": None,
+                        "groups": None,
+                        "ordering_index": ordering_index[0].text,
+                    }
                 )
             elif list_size == 2:
                 self._have.append(
                     {
+                        "ordering_index": ordering_index[0].text,
                         "name": name_list[0].text,
                         "group": name_list[1].text,
                         "groups": None,
@@ -764,6 +861,7 @@ class NCConfiguration(ConfigBase):
                 self._have.append(
                     {
                         "name": name_list[0].text,
+                        "ordering_index": ordering_index[0].text,
                         "group": None,
                         "groups": tmp_list,
                     }
@@ -772,22 +870,41 @@ class NCConfiguration(ConfigBase):
         locald_params = list()
         locald_group_params = list()
         opcode = None
+        ordering_index_list = [
+            int(user.get("ordering_index")) for user in self._have
+        ]
 
         if state == "absent":
             opcode = "delete"
             for want_item in self._want:
                 if want_item["name"] in users:
+                    obj_in_have = search_obj_in_list(
+                        want_item["name"], self._have
+                    )
+                    want_item["ordering_index"] = obj_in_have["ordering_index"]
                     want_item["configured_password"] = None
                     locald_params.append(want_item)
         elif state == "present":
             opcode = "merge"
             for want_item in self._want:
+                obj_in_have = search_obj_in_list(want_item["name"], self._have)
                 if want_item["name"] not in users:
+                    if os_version and LooseVersion(os_version) > LooseVersion(
+                        "7.0"
+                    ):
+                        want_item[
+                            "configured_password"
+                        ] = self.generate_md5_hash(
+                            want_item["configured_password"]
+                        )
+                        new_ordering_index = ordering_index_list[-1] + 1
+                        want_item["ordering_index"] = str(new_ordering_index)
+                        ordering_index_list.append(new_ordering_index)
+                        want_item["type"] = "type5"
                     want_item["configured_password"] = self.generate_md5_hash(
                         want_item["configured_password"]
                     )
                     locald_params.append(want_item)
-
                     if want_item["group"] is not None:
                         locald_group_params.append(want_item)
                     if want_item["groups"] is not None:
@@ -795,10 +912,20 @@ class NCConfiguration(ConfigBase):
                             want_item["group"] = group
                             locald_group_params.append(want_item.copy())
                 else:
+                    if os_version and LooseVersion(os_version) > LooseVersion(
+                        "7.0"
+                    ):
+                        if obj_in_have:
+                            # Add iosxr 7.0 > specific parameters
+                            want_item["type"] = "type5"
+                            want_item["ordering_index"] = obj_in_have[
+                                "ordering_index"
+                            ]
                     if (
                         self._module.params["update_password"] == "always"
                         and want_item["configured_password"] is not None
                     ):
+
                         want_item[
                             "configured_password"
                         ] = self.generate_md5_hash(
@@ -808,9 +935,6 @@ class NCConfiguration(ConfigBase):
                     else:
                         want_item["configured_password"] = None
 
-                    obj_in_have = search_obj_in_list(
-                        want_item["name"], self._have
-                    )
                     if (
                         want_item["group"] is not None
                         and want_item["group"] != obj_in_have["group"]
@@ -861,7 +985,6 @@ class NCConfiguration(ConfigBase):
                         opcode="delete",
                     )
                 )
-
         diff = None
         if _edit_filter_list:
             commit = not self._module.check_mode
@@ -881,8 +1004,13 @@ class NCConfiguration(ConfigBase):
             self._result["changed"] = True
 
     def run(self):
+        os_version = (
+            get_capabilities(self._module)
+            .get("device_info")
+            .get("network_os_version")
+        )
         self.map_params_to_obj()
-        self.map_obj_to_xml_rpc()
+        self.map_obj_to_xml_rpc(os_version)
 
         return self._result
 

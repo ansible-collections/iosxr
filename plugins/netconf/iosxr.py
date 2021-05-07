@@ -75,59 +75,62 @@ class Netconf(NetconfBase):
         install_meta = collections.OrderedDict()
         install_meta.update(
             [
+                ("prepare", {"xpath": "install/prepare", "tag": True}),
                 (
-                    "boot-variables",
-                    {"xpath": "install/boot-variables", "tag": True},
-                ),
-                (
-                    "boot-variable",
+                    "prepared-boot-image",
                     {
-                        "xpath": "install/boot-variables/boot-variable",
-                        "tag": True,
-                        "lead": True,
-                    },
-                ),
-                ("software", {"xpath": "install/software", "tag": True}),
-                (
-                    "alias-devices",
-                    {"xpath": "install/software/alias-devices", "tag": True},
-                ),
-                (
-                    "alias-device",
-                    {
-                        "xpath": "install/software/alias-devices/alias-device",
+                        "xpath": "install/prepare/prepared-boot-image",
                         "tag": True,
                     },
                 ),
+                ("version", {"xpath": "install/version", "tag": True}),
+                ("label", {"xpath": "install/version/label", "tag": True}),
                 (
-                    "m:device-name",
-                    {
-                        "xpath": "install/software/alias-devices/alias-device/device-name",
-                        "value": "disk0:",
-                    },
+                    "hardware-info",
+                    {"xpath": "install/version/hardware-info", "tag": True},
                 ),
+                ("package", {"xpath": "install/version/package", "tag": True}),
             ]
         )
-
-        install_filter = build_xml("install", install_meta, opcode="filter")
+        install_filter = build_xml(
+            "install", install_meta, opcode="filter", namespace="install"
+        )
         try:
             reply = self.get(install_filter)
             resp = remove_namespaces(
                 re.sub(r'<\?xml version="1.0" encoding="UTF-8"\?>', "", reply)
             )
-            ele_boot_variable = etree_find(resp, "boot-variable/boot-variable")
-            if ele_boot_variable is not None:
-                device_info["network_os_image"] = re.split(
-                    "[:|,]", ele_boot_variable.text
-                )[1]
-            ele_package_name = etree_find(reply, "package-name")
+            ele_package_name = etree_find(resp.strip(), "name")
             if ele_package_name is not None:
                 device_info["network_os_package"] = ele_package_name.text
-                device_info["network_os_version"] = re.split(
-                    "-", ele_package_name.text
-                )[-1]
+            ele_label = etree_find(resp.strip(), "label")
+            if ele_label is not None:
+                device_info["network_os_version"] = ele_label.text
 
-            hostname_filter = build_xml("host-names", opcode="filter")
+            model_search_strs = [
+                r"^[Cc]isco (.+) \(\) processor",
+                r"^[Cc]isco (.+) \(revision",
+                r"^[Cc]isco (\S+ \S+).+bytes of .*memory",
+            ]
+            ele_hardware_info = etree_find(resp.strip(), "hardware-info")
+            if ele_hardware_info is not None:
+                for item in model_search_strs:
+                    match = re.search(item, ele_hardware_info.text, re.M)
+                    if match:
+                        device_info["network_os_model"] = match.group(1)
+                        break
+        except Exception as exc:
+            if "bad-namespace" in str(exc):
+                device_info = self.get_device_info_old_version()
+            else:
+                self._connection.queue_message(
+                    "vvvv", "Fail to retrieve device info %s" % exc
+                )
+        print(device_info)
+        try:
+            hostname_filter = build_xml(
+                "host-names", opcode="filter", namespace="host-names"
+            )
             reply = self.get(hostname_filter)
             resp = remove_namespaces(
                 re.sub(r'<\?xml version="1.0" encoding="UTF-8"\?>', "", reply)
@@ -295,3 +298,68 @@ class Netconf(NetconfBase):
             return response
         except RPCError as exc:
             raise Exception(to_xml(exc.xml))
+
+    def get_device_info_old_version(self):
+        device_info = {}
+        device_info["network_os"] = "iosxr"
+        install_meta = collections.OrderedDict()
+        install_meta.update(
+            [
+                (
+                    "boot-variables",
+                    {"xpath": "install/boot-variables", "tag": True},
+                ),
+                (
+                    "boot-variable",
+                    {
+                        "xpath": "install/boot-variables/boot-variable",
+                        "tag": True,
+                        "lead": True,
+                    },
+                ),
+                ("software", {"xpath": "install/software", "tag": True}),
+                (
+                    "alias-devices",
+                    {"xpath": "install/software/alias-devices", "tag": True},
+                ),
+                (
+                    "alias-device",
+                    {
+                        "xpath": "install/software/alias-devices/alias-device",
+                        "tag": True,
+                    },
+                ),
+                (
+                    "m:device-name",
+                    {
+                        "xpath": "install/software/alias-devices/alias-device/device-name",
+                        "value": "disk0:",
+                    },
+                ),
+            ]
+        )
+
+        install_filter = build_xml(
+            "install", install_meta, opcode="filter", namespace="install_old"
+        )
+        try:
+            reply = self.get(install_filter)
+            resp = remove_namespaces(
+                re.sub(r'<\?xml version="1.0" encoding="UTF-8"\?>', "", reply)
+            )
+            ele_boot_variable = etree_find(resp, "boot-variable/boot-variable")
+            if ele_boot_variable is not None:
+                device_info["network_os_image"] = re.split(
+                    "[:|,]", ele_boot_variable.text
+                )[1]
+            ele_package_name = etree_find(reply, "package-name")
+            if ele_package_name is not None:
+                device_info["network_os_package"] = ele_package_name.text
+                device_info["network_os_version"] = re.split(
+                    "-", ele_package_name.text
+                )[-1]
+        except Exception as exc:
+            self._connection.queue_message(
+                "vvvv", "Fail to retrieve device info %s" % exc
+            )
+        return device_info

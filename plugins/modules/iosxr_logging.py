@@ -75,6 +75,10 @@ options:
     aliases:
     - severity
     choices: ["emergencies", "alerts", "critical", "errors", "warning", "notifications", "informational", "debugging"]
+  path:
+    description:
+        Set file path.
+    type: str
   aggregate:
     description: List of syslog logging configuration definitions.
     type: list
@@ -95,6 +99,10 @@ options:
         - When C(dest) = I(file) name indicates file-name
         - When C(dest) = I(host) name indicates the host-name or ip-address of syslog
           server.
+        type: str
+      path:
+        description:
+          Set file path.
         type: str
       vrf:
         description:
@@ -241,12 +249,15 @@ xml:
 import re
 import collections
 from copy import deepcopy
+from distutils.version import LooseVersion
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.cisco.iosxr.plugins.module_utils.network.iosxr.iosxr import (
     get_config,
     load_config,
     build_xml,
+    get_capabilities,
+    get_os_version,
 )
 from ansible_collections.cisco.iosxr.plugins.module_utils.network.iosxr.iosxr import (
     iosxr_argument_spec,
@@ -372,6 +383,7 @@ class ConfigBase(object):
                     "name": params["name"],
                     "vrf": params["vrf"],
                     "size": params["size"],
+                    "path": params["path"],
                     "facility": params["facility"],
                     "level": params["level"],
                     "hostnameprefix": params["hostnameprefix"],
@@ -386,12 +398,13 @@ class CliConfiguration(ConfigBase):
         self._file_list = set()
         self._host_list = set()
 
-    def map_obj_to_commands(self):
+    def map_obj_to_commands(self, os_version):
         commands = list()
         for want_item in self._want:
             dest = want_item["dest"]
             name = want_item["name"]
             size = want_item["size"]
+            path = want_item["path"]
             facility = want_item["facility"]
             level = want_item["level"]
             vrf = want_item["vrf"]
@@ -460,11 +473,20 @@ class CliConfiguration(ConfigBase):
                 elif dest == "file" and name not in self._file_list:
                     if level == "errors" or level == "informational":
                         level = severity_transpose[level]
-                    commands.append(
-                        "logging file {0} maxfilesize {1} severity {2}".format(
-                            name, size, level
+                    if os_version and LooseVersion(os_version) > LooseVersion(
+                        "7.0"
+                    ):
+                        commands.append(
+                            "logging file {0} path {1} maxfilesize {2} severity {3}".format(
+                                name, path, size, level
+                            )
                         )
-                    )
+                    else:
+                        commands.append(
+                            "logging file {0} maxfilesize {1} severity {2}".format(
+                                name, size, level
+                            )
+                        )
                 elif dest == "buffered" and (
                     have_size is None
                     or (have_size is not None and size != have_size)
@@ -538,7 +560,39 @@ class CliConfiguration(ConfigBase):
                 if int_size is not None:
                     if isinstance(int_size, int):
                         size = str(match.group(1))
+        if dest == "file":
+            match = re.search(
+                r"logging file (\S+) (path\s\S+\s)?maxfilesize (\S+)",
+                line,
+                re.M,
+            )
+            if match:
+                try:
+                    if "path" in line:
+                        int_size = int(match.group(2))
+                    else:
+                        int_size = int(match.group(1))
+                except ValueError:
+                    int_size = None
+
+                if int_size is not None:
+                    if isinstance(int_size, int):
+                        size = str(int_size)
+
         return size
+
+    def parse_path(self, line, dest):
+        path = None
+
+        if dest == "file":
+            match = re.search(r"logging file (\S+) (path\s\S+\s)", line, re.M)
+            if match:
+                try:
+                    path = str(match.group(2))
+                except ValueError:
+                    path = None
+
+        return path
 
     def parse_hostnameprefix(self, line):
         prefix = None
@@ -617,6 +671,7 @@ class CliConfiguration(ConfigBase):
                         "dest": dest,
                         "name": name,
                         "size": self.parse_size(line, dest),
+                        "path": self.parse_path(line, dest),
                         "facility": self.parse_facility(line),
                         "level": self.parse_level(line, dest),
                         "vrf": self.parse_vrf(line, dest),
@@ -624,10 +679,10 @@ class CliConfiguration(ConfigBase):
                     }
                 )
 
-    def run(self):
+    def run(self, os_version):
         self.map_params_to_obj()
         self.map_config_to_obj()
-        self.map_obj_to_commands()
+        self.map_obj_to_commands(os_version)
 
         return self._result
 
@@ -640,12 +695,15 @@ class NCConfiguration(ConfigBase):
         self._log_host_meta = collections.OrderedDict()
         self._log_console_meta = collections.OrderedDict()
         self._log_monitor_meta = collections.OrderedDict()
-        self._log_buffered_size_meta = collections.OrderedDict()
-        self._log_buffered_level_meta = collections.OrderedDict()
+        self._log_buffered_meta = collections.OrderedDict()
         self._log_facility_meta = collections.OrderedDict()
         self._log_prefix_meta = collections.OrderedDict()
 
-    def map_obj_to_xml_rpc(self):
+    def map_obj_to_xml_rpc(self, os_version):
+        file_attribute_path = "file-log-attributes"
+        if os_version and LooseVersion(os_version) > LooseVersion("7.0.0"):
+            file_attribute_path = "file-specification"
+
         self._log_file_meta.update(
             [
                 (
@@ -675,7 +733,7 @@ class NCConfiguration(ConfigBase):
                 (
                     "file-attrib",
                     {
-                        "xpath": "syslog/files/file/file-log-attributes",
+                        "xpath": "syslog/files/file/" + file_attribute_path,
                         "tag": True,
                         "operation": "edit",
                     },
@@ -683,14 +741,27 @@ class NCConfiguration(ConfigBase):
                 (
                     "a:size",
                     {
-                        "xpath": "syslog/files/file/file-log-attributes/max-file-size",
+                        "xpath": "syslog/files/file/"
+                        + file_attribute_path
+                        + "/max-file-size",
                         "operation": "edit",
                     },
                 ),
                 (
                     "a:level",
                     {
-                        "xpath": "syslog/files/file/file-log-attributes/severity",
+                        "xpath": "syslog/files/file/"
+                        + file_attribute_path
+                        + "/severity",
+                        "operation": "edit",
+                    },
+                ),
+                (
+                    "a:path",
+                    {
+                        "xpath": "syslog/files/file/"
+                        + file_attribute_path
+                        + "/path",
                         "operation": "edit",
                     },
                 ),
@@ -818,7 +889,7 @@ class NCConfiguration(ConfigBase):
                 ),
             ]
         )
-        self._log_buffered_size_meta.update(
+        self._log_buffered_meta.update(
             [
                 (
                     "buffered",
@@ -834,19 +905,6 @@ class NCConfiguration(ConfigBase):
                     {
                         "xpath": "syslog/buffered-logging/buffer-size",
                         "operation": "edit",
-                    },
-                ),
-            ]
-        )
-        self._log_buffered_level_meta.update(
-            [
-                (
-                    "buffered",
-                    {
-                        "xpath": "syslog/buffered-logging",
-                        "tag": True,
-                        "operation": "edit",
-                        "attrib": "operation",
                     },
                 ),
                 (
@@ -1079,15 +1137,7 @@ class NCConfiguration(ConfigBase):
                 _edit_filter_list.append(
                     build_xml(
                         "syslog",
-                        xmap=self._log_buffered_size_meta,
-                        params=buffered_params,
-                        opcode=opcode,
-                    )
-                )
-                _edit_filter_list.append(
-                    build_xml(
-                        "syslog",
-                        xmap=self._log_buffered_level_meta,
+                        xmap=self._log_buffered_meta,
                         params=buffered_params,
                         opcode=opcode,
                     )
@@ -1121,7 +1171,6 @@ class NCConfiguration(ConfigBase):
                     running=running,
                     nc_get_filter=_get_filter,
                 )
-
             if diff:
                 if self._module._diff:
                     self._result["diff"] = dict(prepared=diff)
@@ -1129,9 +1178,9 @@ class NCConfiguration(ConfigBase):
                 self._result["xml"] = _edit_filter_list
                 self._result["changed"] = True
 
-    def run(self):
+    def run(self, os_version):
         self.map_params_to_obj()
-        self.map_obj_to_xml_rpc()
+        self.map_obj_to_xml_rpc(os_version)
 
         return self._result
 
@@ -1146,6 +1195,7 @@ def main():
         ),
         name=dict(type="str"),
         size=dict(type="int"),
+        path=dict(type="str"),
         vrf=dict(type="str", default="default"),
         facility=dict(type="str", default="local7"),
         hostnameprefix=dict(type="str"),
@@ -1201,18 +1251,23 @@ def main():
         required_if=required_if,
         supports_check_mode=True,
     )
-
     config_object = None
     if is_cliconf(module):
         # Commenting the below cliconf deprecation support call for Ansible 2.9 as it'll be continued to be supported
         # module.deprecate("cli support for 'iosxr_interface' is deprecated. Use transport netconf instead",
         #                  version='2.9')
         config_object = CliConfiguration(module)
+        os_version = get_os_version(module)
     elif is_netconf(module):
         config_object = NCConfiguration(module)
+        os_version = (
+            get_capabilities(module)
+            .get("device_info")
+            .get("network_os_version")
+        )
 
     if config_object:
-        result = config_object.run()
+        result = config_object.run(os_version)
     module.exit_json(**result)
 
 

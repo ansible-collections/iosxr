@@ -15,16 +15,13 @@
         config:
 
           - name: GigabitEthernet0/0/0/4
-            native_vlan: 40
             l2transport: true
             l2protocol:
-
-              - stp: forward
-
+              - cpsv: tunnel
           - name: GigabitEthernet0/0/0/3.900
-            q_vlan:
-              - 20
-              - 40
+            encapsulation:
+              dot1q: 20
+              second_dot1q: 40
         state: overridden
 
     - name: Assert that correct set of commands were generated

@@ -60,11 +60,22 @@ class L2_InterfacesArgs(object):
                             "type": "str",
                             "choices": ["drop", "forward", "tunnel"],
                         },
+                        "cpsv": {
+                            "type": "str",
+                            "choices": ["drop", "reverse-tunnel", "tunnel"],
+                        },
                     },
                     "type": "list",
                 },
                 "q_vlan": {"type": "list", "elements": "int"},
                 "propagate": {"type": "bool"},
+                "encapsulation": {
+                    "type": "dict",
+                    "options": {
+                        "dot1q": {"type": "int"},
+                        "second_dot1q": {"type": "int"},
+                    },
+                },
             },
             "type": "list",
         },

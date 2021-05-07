@@ -13,22 +13,17 @@
         config:
 
           - name: GigabitEthernet0/0/0/1
-            native_vlan: 10
             l2transport: true
             l2protocol:
-
-              - pvst: tunnel
-
-              - cdp: forward
+              - cpsv: tunnel
             propagate: true
 
           - name: GigabitEthernet0/0/0/3.900
-            q_vlan:
-              - 20
-              - 40
+            encapsulation:
+              dot1q: 20
+              second_dot1q: 40
 
           - name: GigabitEthernet0/0/0/4
-            native_vlan: 40
         state: merged
 
     - name: Gather l2 interfaces facts using gathered state

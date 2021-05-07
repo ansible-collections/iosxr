@@ -72,27 +72,26 @@
     cisco.iosxr.iosxr_l2_interfaces: &mergedl2
       config:
         - name: GigabitEthernet0/0/0/1
-          native_vlan: 10
           l2transport: true
           l2protocol:
-            - pvst: tunnel
-            - cdp: forward
+            - cpsv: drop
           propagate: true
 
-        - name: GigabitEthernet0/0/0/4
-          native_vlan: 40
+        - name: GigabitEthernet0/0/0/4.1
+          encapsulation:
+            dot1q: 20
+            second_dot1q: 40
+
       state: merged
 
   - assert:
       that:
         - '"interface GigabitEthernet0/0/0/1" in result.commands'
-        - '"dot1q native vlan 10" in result.commands'
-        - '"l2transport l2protocol pvst tunnel" in result.commands'
-        - '"l2transport l2protocol cdp forward" in result.commands'
+        - '"l2transport l2protocol cpsv drop" in result.commands'
         - '"l2transport propagate remote-status" in result.commands'
-        - '"interface GigabitEthernet0/0/0/4" in result.commands'
-        - '"dot1q native vlan 40" in result.commands'
-        - result.commands|length == 7
+        - '"interface GigabitEthernet0/0/0/4.1" in result.commands'
+        - '"encapsulation dot1q 20 second-dot1q 40" in result.commands'
+        - result.commands|length == 5
 
   - name: Merge L2 interfaces configuration (IDEMPOTENT)
     register: result

@@ -12,5 +12,5 @@
 - name: Assert that config was correctly parsed
   assert:
     that:
-      - "{{ parsed['after'] | symmetric_difference(result['parsed']) |length ==\
+      - "{{ merged['after'] | symmetric_difference(result['parsed']) |length ==\
         \ 0 }}"

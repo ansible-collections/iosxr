@@ -1,4 +1,8 @@
 ---
+- name: Pause for 1 min
+  pause:
+    minutes: 1
+
 - name: setup - remove motd
   cisco.iosxr.iosxr_banner:
     banner: motd

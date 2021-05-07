@@ -87,6 +87,7 @@ class Cliconf(CliconfBase):
                 device_info["network_os_image"] = match.group(1)
 
             model_search_strs = [
+                r"^[Cc]isco (.+) \(\) processor",
                 r"^[Cc]isco (.+) \(revision",
                 r"^[Cc]isco (\S+ \S+).+bytes of .*memory",
             ]

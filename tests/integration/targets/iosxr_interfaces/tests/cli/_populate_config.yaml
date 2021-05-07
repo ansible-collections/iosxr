@@ -1,8 +1,18 @@
 ---
-- name: Populate Config
-  vars:
-    lines: "interface GigabitEthernet 0/0/0/0\ndescription this is interface0\n\
-      mtu 65\nspeed 10\nno shutdown\ninterface GigabitEthernet 0/0/0/1\ndescription\
-      \ this is interface1\nmtu 65\nspeed 10\nno shutdown\n"
-  ansible.netcommon.cli_config:
-    config: '{{ lines }}'
+- name: "Populate config interface 0/0/0/0"
+  cisco.iosxr.iosxr_config:
+    lines:
+      - "description this is interface0"
+      - "mtu 65"
+      - "speed 10"
+      - "no shutdown"
+    parents: "interface GigabitEthernet 0/0/0/0"
+
+- name: "Populate config interface 0/0/0/1"
+  cisco.iosxr.iosxr_config:
+    lines:
+      - "description this is interface1"
+      - "mtu 65"
+      - "speed 10"
+      - "no shutdown"
+    parents: "interface GigabitEthernet 0/0/0/1"

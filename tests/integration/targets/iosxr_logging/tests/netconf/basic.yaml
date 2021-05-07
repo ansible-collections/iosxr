@@ -151,10 +151,12 @@
         name: file1
         size: 2048
         level: critical
+        path: /file1
 
       - dest: file
         name: file2
         size: 2048
+        path: /file2
 
       - facility: local3
 
@@ -172,9 +174,9 @@
       - '"notice" in result.xml[2]'
       - '"alert" in result.xml[3]'
       - '"4700000" in result.xml[4]'
-      - '"debug" in result.xml[5]'
-      - '"local3" in result.xml[6]'
-      - '"host3" in result.xml[7]'
+      - '"debug" in result.xml[4]'
+      - '"local3" in result.xml[5]'
+      - '"host3" in result.xml[6]'
 
 - name: remove logging parameters using aggregate
   register: result
@@ -222,6 +224,6 @@
       - '"notice" in result.xml[2]'
       - '"alert" in result.xml[3]'
       - '"4700000" in result.xml[4]'
-      - '"debug" in result.xml[5]'
-      - '"local3" in result.xml[6]'
-      - '"host3" in result.xml[7]'
+      - '"debug" in result.xml[4]'
+      - '"local3" in result.xml[5]'
+      - '"host3" in result.xml[6]'

@@ -16,11 +16,9 @@
         config:
 
           - name: GigabitEthernet0/0/0/1
-            native_vlan: 40
             l2transport: true
             l2protocol:
-
-              - vtp: tunnel
+              - cpsv: drop
         state: replaced
 
     - name: Assert that correct set of commands were generated
